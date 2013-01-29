@@ -1,0 +1,15 @@
+<%@ val verified_id: String %>
+<%@ val verified_msg: String %>
+<%@ val auth_response: String %>
+
+
+OpenID verified identifier:
+<h3>${verified_id}</h3>
+
+verification status/error message:
+<h3>${verified_msg}</h3>
+
+raw response received:
+<pre>
+${auth_response}
+</pre>

@@ -1,0 +1,13 @@
+<%@ val config_file: String %>
+<%@ val openid_identifier: String %>
+<%@ val openid_request_extensions: String  %>
+<form id="openid_login" action="" method="post">
+    <input type="text" name="openid_identifier" value="${openid_identifier}" size="60" />
+    <button type="submit">Login</button>
+</form>
+openid extension parameters (no "openid." key prefix):
+<textarea name="openid_request_extensions" form="openid_login" rows="20" cols="60">
+${openid_request_extensions}
+</textarea>
+<br/>
+[loaded from config file: ${config_file}]

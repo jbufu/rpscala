@@ -1,0 +1,24 @@
+<%@ val openid_request: List[(String,String)] %>
+<%@ val op_endpoint: String %>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>openid auto-submit form</title></head>
+<body onload="document.forms['openid-auto-post'].submit();">
+<form name="openid-auto-post" action="${op_endpoint}" method="post" accept-charset="utf-8">
+    <table>
+        #for (kv <- openid_request)
+        <tr>
+        <td>${kv._1}</td>
+        <td><input type="text" name="${kv._1}" value="${kv._2}" size="90"/><br/></td>
+        </tr>
+        #end
+    </table>
+    <noscript>
+    <p>Please click the <b>Continue...</b> to resume your OpenID request.<br />
+    To prevent this message from appearing in the future, enable Javascript on your browser.</p>
+    <button type="submit">Continue...</button>
+    </noscript>
+</form>
+</body>
+</html>

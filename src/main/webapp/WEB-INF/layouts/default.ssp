@@ -1,0 +1,13 @@
+<%@ var body: String %>
+<%@ var title: String = "" %>
+<html>
+<head>
+  <title>${title}</title>
+</head>
+<body>
+<p>${title}</p>
+
+${unescape(body)}
+
+</body>
+</html>

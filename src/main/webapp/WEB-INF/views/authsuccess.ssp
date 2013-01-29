@@ -1,0 +1,9 @@
+<%@ val authSuccess: List[(String,String)] %>
+<table>
+#for (kv <- authSuccess)
+<tr>
+<td>${kv._1}</td>
+<td>${kv._2}</td>
+</tr>
+#end
+</table>
