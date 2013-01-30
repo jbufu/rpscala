@@ -10,4 +10,4 @@ openid extension parameters (no "openid." key prefix):
 ${openid_request_extensions}
 </textarea>
 <br/>
-[loaded from config file: ${config_file}]
+[loaded from config file(s): ${config_file}]

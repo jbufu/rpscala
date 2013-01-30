@@ -15,6 +15,8 @@ Configuration
 
 system property, path for the RP openid request configuration property files
 
+edit in `build.sbt` for usage with `~;container:start; container:reload /` in sbt
+
 property files may contain additional key-value pairs (usually openid extensions)
 to be added to the openid request
 
@@ -25,11 +27,17 @@ OpenID login
 ------------------------------------------------------------------------
     GET /
     GET /login/<config_name>
+    GET /login/config_name1/config_name2/...
 
-1) Reads extra request data from the property file located at `CONFIG_PATH/<config_name>.properties`
+Example: login with google (identifier_select) ID and request SREG:
+
+    GET /login/idgoog/sreg
+
+1) Reads extra request data from the property file located at `CONFIG_PATH/<config_nameX>.properties`
+Multiple configurations can be appended together. See some sample extension properties in the `configs/` folder.
 
 2) Prompts the use to input or confirm the ID/URL, optionally edit data read from the config file
 
 3) On submit the OpenID authentication flow is initiated
 
-4) OpenID authentication response is collected at /return, and the response data is displayed
+4) OpenID authentication response is collected at `/return`, and the response data is displayed
