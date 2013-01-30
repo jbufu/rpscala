@@ -63,7 +63,15 @@ class RP extends ScalatraServlet with ScalateSupport {
     )
   }
 
+  post(RETURN_PATH) {
+    doReturnUrl()
+  }
+
   get(RETURN_PATH) {
+    doReturnUrl()
+  }
+
+  private def doReturnUrl() = {
     contentType = "text/html"
     val verif = openidVerify(request)
     ssp("response",
@@ -110,7 +118,9 @@ class RP extends ScalatraServlet with ScalateSupport {
   private def baseUrl(requestUrl: String) = requestUrl.replaceAll(LOGIN_PATH + ".*", "")
   private def returnUrl(rpBaseUrl :String) = rpBaseUrl + RETURN_PATH
   private def receivingUrl(request: HttpServletRequest) =
-    request.getRequestURL.append(if (request.getQueryString.length > 0) "?" + request.getQueryString else "").toString
+    request.getRequestURL.append(
+      if (request.getQueryString != null && request.getQueryString.length > 0) "?" + request.getQueryString else "")
+      .toString
 
   private def openidRequest(identifier: Option[String], returnUrl: String) =
     openid.authenticate(openid.discover(identifier.getOrElse(halt(400, "invalid identifier"))), returnUrl)
