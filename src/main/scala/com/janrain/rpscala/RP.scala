@@ -38,13 +38,10 @@ class RP extends ScalatraServlet with ScalateSupport {
     redirect(LOGIN_PATH)
   }
 
-//  get(LOGIN_PATH + "/?:config?") {
-  get((LOGIN_PATH + "/(.*)").r) {
+  get((LOGIN_PATH + "/?(.*)").r) {
     contentType = "text/html"
-    val configs = multiParams("captures").flatMap(_.split("/"))
+    val configs = multiParams("captures").flatMap(_.split("/")).map(c => if (c == "") CONFIG_NONE else c)
     val requestParams = configs.foldLeft(Map.empty[String,String])( (loaded,configName) => loaded ++ loadConfig(configName)  )
-//    val config = params.getOrElse("config", CONFIG_NONE )
-//    val requestParams = loadConfig(config)
     ssp("/login",
       OPENID_IDENTIFIER -> requestParams.get(OPENID_IDENTIFIER).getOrElse(""),
       OPENID_REQUEST_EXTENSIONS -> kvString(requestParams.filterKeys(_ != OPENID_IDENTIFIER)),
