@@ -1,4 +1,5 @@
 <%@ val verified_id: String %>
+<%@ val extensions: List[String] %>
 <%@ val verified_msg: String %>
 <%@ val auth_response: String %>
 
@@ -9,6 +10,13 @@ OpenID verified identifier:
 verification status/error message:
 <h3>${verified_msg}</h3>
 
+#for (ext <- extensions)
+<hr/>
+<pre>
+${ext}
+</pre>
+#end
+<hr/>
 raw response received:
 <pre>
 ${auth_response}

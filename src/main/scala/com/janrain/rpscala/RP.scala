@@ -7,7 +7,7 @@ import java.io.FileInputStream
 import scala.collection.JavaConversions._
 import org.openid4java.consumer.ConsumerManager
 import RP._
-import org.openid4java.message.ParameterList
+import org.openid4java.message.{Message, ParameterList}
 import javax.servlet.http.HttpServletRequest
 
 object RP {
@@ -26,6 +26,7 @@ object RP {
   final val OP_ENDPOINT = "op_endpoint"
 
   final val VERIFIED_ID = "verified_id"
+  final val EXTENSIONS = "extensions"
   final val VERIFIED_MSG = "verified_msg"
   final val AUTH_RESPONSE = "auth_response"
 
@@ -73,6 +74,7 @@ class RP extends ScalatraServlet with ScalateSupport {
     val verif = openidVerify(request)
     ssp("response",
       VERIFIED_ID -> (if (verif.getVerifiedId != null) verif.getVerifiedId.getIdentifier else "[no verified identifier]"),
+      EXTENSIONS -> extensionsAsStrings(verif.getAuthResponse),
       VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else "[no message]"),
       AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => (kv._1.toString -> kv._2.toString)).toMap)
     )
@@ -118,6 +120,16 @@ class RP extends ScalatraServlet with ScalateSupport {
     request.getRequestURL.append(
       if (request.getQueryString != null && request.getQueryString.length > 0) "?" + request.getQueryString else "")
       .toString
+
+  private def extensionsAsStrings(message: Message): List[String] = {
+    if (message == null || message.getExtensions.size < 1)
+      return Nil
+
+    val extAliases = message.getExtensions.map(extTypeUri => "openid." + message.getExtensionAlias(extTypeUri.toString))
+
+    new ParameterList(message.getParameterMap.filterKeys(k => ! extAliases.exists(k.toString.startsWith(_)))).toString ::
+      message.getExtensions.map(extTypeUri => message.getExtension(extTypeUri.toString).getParameters.toString).toList
+  }
 
   private def openidRequest(identifier: Option[String], returnUrl: String) =
     openid.authenticate(openid.discover(identifier.getOrElse(halt(400, "invalid identifier"))), returnUrl)
