@@ -7,8 +7,11 @@
 OpenID verified identifier:
 <h3>${verified_id}</h3>
 
+<hr/>
 verification status/error message:
-<h3>${verified_msg}</h3>
+<pre>
+${verified_msg}
+</pre>
 
 #for (ext <- extensions)
 <hr/>
@@ -17,7 +20,7 @@ ${ext}
 </pre>
 #end
 <hr/>
-raw response received:
+raw response:
 <pre>
 ${auth_response}
 </pre>

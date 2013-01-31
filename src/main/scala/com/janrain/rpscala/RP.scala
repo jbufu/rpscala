@@ -71,13 +71,7 @@ class RP extends ScalatraServlet with ScalateSupport {
 
   private def doReturnUrl() = {
     contentType = "text/html"
-    val verif = openidVerify(request)
-    ssp("response",
-      VERIFIED_ID -> (if (verif.getVerifiedId != null) verif.getVerifiedId.getIdentifier else "[no verified identifier]"),
-      EXTENSIONS -> extensionsAsStrings(verif.getAuthResponse),
-      VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else "[no message]"),
-      AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => (kv._1.toString -> kv._2.toString)).toMap)
-    )
+    ssp("response", openidVerify(request): _*)
   }
 
   notFound {
@@ -135,6 +129,22 @@ class RP extends ScalatraServlet with ScalateSupport {
     openid.authenticate(openid.discover(identifier.getOrElse(halt(400, "invalid identifier"))), returnUrl)
 
   def openidVerify(request: HttpServletRequest) = {
-    openid.verify(receivingUrl(request), new ParameterList(request.getParameterMap), null )
+    try {
+      val verif = openid.verify(receivingUrl(request), new ParameterList(request.getParameterMap), null )
+      List(
+        VERIFIED_ID -> (if (verif.getVerifiedId != null) verif.getVerifiedId.getIdentifier else "[no verified identifier]"),
+        EXTENSIONS -> extensionsAsStrings(verif.getAuthResponse),
+        VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else "[no message]"),
+        AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => (kv._1.toString -> kv._2.toString)).toMap)
+      ).toList
+    } catch {
+      case e: Exception =>
+        List(
+          VERIFIED_ID -> "[openid response processing unsuccessful]",
+          EXTENSIONS -> Nil,
+          VERIFIED_MSG -> (e.getMessage + "\n\n" + e.getStackTraceString),
+          AUTH_RESPONSE -> kvString(request.getParameterMap.mapValues(_.mkString(" :::: ")).toMap)
+        )
+    }
   }
 }
