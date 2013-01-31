@@ -21,6 +21,8 @@ initialize ~= { _ =>
 
 seq(webSettings :_*)
 
+port in container.Configuration := 8081
+
 classpathTypes ~= (_ + "orbit")
 
 libraryDependencies ++= Seq(
