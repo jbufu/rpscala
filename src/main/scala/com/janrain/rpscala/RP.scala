@@ -9,6 +9,7 @@ import org.openid4java.consumer.ConsumerManager
 import RP._
 import org.openid4java.message.{Message, ParameterList}
 import javax.servlet.http.HttpServletRequest
+import collection.immutable.TreeMap
 
 object RP {
 
@@ -71,7 +72,8 @@ class RP extends ScalatraServlet with ScalateSupport {
 
   private def doReturnUrl() = {
     contentType = "text/html"
-    ssp("response", openidVerify(request): _*)
+    val responseModel = openidVerify(request)
+    ssp("response", responseModel: _*)
   }
 
   notFound {
@@ -121,8 +123,16 @@ class RP extends ScalatraServlet with ScalateSupport {
 
     val extAliases = message.getExtensions.map(extTypeUri => "openid." + message.getExtensionAlias(extTypeUri.toString))
 
-    new ParameterList(message.getParameterMap.filterKeys(k => ! extAliases.exists(k.toString.startsWith(_)))).toString ::
-      message.getExtensions.map(extTypeUri => message.getExtension(extTypeUri.toString).getParameters.toString).toList
+    val respCore = kvString(TreeMap(message.getParameterMap
+      .withFilter(kv => ! extAliases.exists(kv._1.toString.startsWith(_)))
+      .map(kv => (kv._1.toString,kv._2.toString)).toList: _*
+    ))
+
+    val respExtensions: List[String] = message.getExtensions.map(extTypeUri => {
+      message.getExtension(extTypeUri.toString).getParameters.toString.split("\n").sorted.mkString("\n")
+    }).toList
+
+    respCore :: respExtensions
   }
 
   private def openidRequest(identifier: Option[String], returnUrl: String) =
