@@ -144,7 +144,7 @@ class RP extends ScalatraServlet with ScalateSupport {
       List(
         VERIFIED_ID -> (if (verif.getVerifiedId != null) verif.getVerifiedId.getIdentifier else "[no verified identifier]"),
         EXTENSIONS -> extensionsAsStrings(verif.getAuthResponse),
-        VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else "[no message]"),
+        VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else ""),
         AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => (kv._1.toString -> kv._2.toString)).toMap)
       ).toList
     } catch {
@@ -157,4 +157,5 @@ class RP extends ScalatraServlet with ScalateSupport {
         )
     }
   }
+
 }

@@ -7,11 +7,13 @@
 OpenID verified identifier:
 <h3>${verified_id}</h3>
 
+#if (verified_msg.length() > 0)
 <hr/>
 verification status/error message:
 <pre>
 ${verified_msg}
 </pre>
+#end
 
 #for (ext <- extensions)
 <hr/>
