@@ -1,9 +1,11 @@
 <%@ val config_file: String %>
 <%@ val openid_identifier: String %>
+<%@ val openid_version: String %>
 <%@ val openid_request_extensions: String  %>
 <form id="openid_login" action="" method="post">
     <input type="text" name="openid_identifier" value="${openid_identifier}" size="60" />
     <button type="submit">Login</button>
+    <input type="text" name="openid_version" value="${openid_version}" size="5" /> ("v1", "v2", emtpy/any other string for any version)
 </form>
 openid extension parameters (no "openid." key prefix):
 <textarea name="openid_request_extensions" form="openid_login" rows="20" cols="60">

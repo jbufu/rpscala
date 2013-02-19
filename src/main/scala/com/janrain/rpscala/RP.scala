@@ -10,6 +10,7 @@ import RP._
 import org.openid4java.message.{Message, ParameterList}
 import javax.servlet.http.HttpServletRequest
 import collection.immutable.TreeMap
+import org.openid4java.discovery.DiscoveryInformation
 
 object RP {
 
@@ -20,7 +21,10 @@ object RP {
   final val LOGIN_PATH = "/login"
   final val RETURN_PATH = "/return"
 
+  final val OPENID_VERSION = "openid_version"
   final val OPENID_IDENTIFIER = "openid_identifier"
+  final val FILTERED_PARAMS = Seq(OPENID_VERSION, OPENID_IDENTIFIER)
+
   final val OPENID_REQUEST_EXTENSIONS = "openid_request_extensions"
 
   final val OPENID_REQUEST = "openid_request"
@@ -34,7 +38,7 @@ object RP {
   final val openid = new ConsumerManager
 }
 
-class RP extends ScalatraServlet with ScalateSupport {
+class RP extends ScalatraServlet with ScalateSupport with Loggable {
 
   get("/") {
     redirect(LOGIN_PATH)
@@ -45,8 +49,9 @@ class RP extends ScalatraServlet with ScalateSupport {
     val configs = multiParams("captures").flatMap(_.split("/")).map(c => if (c == "") CONFIG_NONE else c)
     val requestParams = configs.foldLeft(Map.empty[String,String])( (loaded,configName) => loaded ++ loadConfig(configName)  )
     ssp("/login",
+      OPENID_VERSION -> requestParams.get(OPENID_VERSION).getOrElse(""),
       OPENID_IDENTIFIER -> requestParams.get(OPENID_IDENTIFIER).getOrElse(""),
-      OPENID_REQUEST_EXTENSIONS -> kvString(requestParams.filterKeys(_ != OPENID_IDENTIFIER)),
+      OPENID_REQUEST_EXTENSIONS -> kvString(requestParams.filterKeys(! FILTERED_PARAMS.contains(_))),
       CONFIG_FILE -> configFilePath(configs.mkString(", "))
     )
   }
@@ -54,10 +59,13 @@ class RP extends ScalatraServlet with ScalateSupport {
   post(LOGIN_PATH + "/*") {
     contentType = "text/html"
     val userSuppliedId = params(OPENID_IDENTIFIER)
-    val openidRequestExtensionParams = params.getOrElse(OPENID_REQUEST_EXTENSIONS, "")
-    val req = openidRequest(Some(userSuppliedId), returnUrl(baseUrl(request.getRequestURL.toString)))
+    val versions = params(OPENID_VERSION)
+    val openidRequestExtensionParams = params.getOrElse(OPENID_REQUEST_EXTENSIONS, "").trim
+    val req = openidRequest(userSuppliedId, versions, returnUrl(baseUrl(request.getRequestURL.toString)))
+    val openid_request = req.getParameterMap ++ fromKVString(openidRequestExtensionParams).map(kv => ("openid." + kv._1, kv._2))
+    logger.info("\nopenid request:\n\t%s".format(openid_request.mkString("\n\t")))
     layoutTemplate("/WEB-INF/layouts/formpost.ssp",
-      OPENID_REQUEST -> (req.getParameterMap ++ fromKVString(openidRequestExtensionParams).map(kv => ("openid." + kv._1, kv._2))).toList,
+      OPENID_REQUEST -> (openid_request).toList,
       OP_ENDPOINT -> req.getOPEndpoint
     )
   }
@@ -105,10 +113,13 @@ class RP extends ScalatraServlet with ScalateSupport {
   private def kvString(m: Map[String,String]) = m.map( kv => kv._1 + "=" + kv._2).mkString("\n")
 
   private def fromKVString(kvString: String): Map[String,String] =
-    kvString.split("\n").map(line =>
+    (for {
+      line <- kvString.split("\n")
+      if line.length > 0
+    } yield {
       (line.trim.takeWhile(_ != '='),
        line.trim.dropWhile(_ != '=').drop(1))
-    ).toMap
+    }).toMap
 
   private def baseUrl(requestUrl: String) = requestUrl.replaceAll(LOGIN_PATH + ".*", "")
   private def returnUrl(rpBaseUrl :String) = rpBaseUrl + RETURN_PATH
@@ -135,8 +146,23 @@ class RP extends ScalatraServlet with ScalateSupport {
     respCore :: respExtensions
   }
 
-  private def openidRequest(identifier: Option[String], returnUrl: String) =
-    openid.authenticate(openid.discover(identifier.getOrElse(halt(400, "invalid identifier"))), returnUrl)
+  private def openidRequest(identifier: String, version: String, returnUrl: String) = {
+    val vf = versionFilter(version)
+    val disc = openid.discover(identifier)
+    val filtered = disc.filter(vf)
+    logger.info("(filtered) discovered endpoints:\n%s".format(filtered.map(d =>
+      d.asInstanceOf[DiscoveryInformation].getVersion + " : " + d.asInstanceOf[DiscoveryInformation].getOPEndpoint).mkString("\n")))
+
+//    val filtered = disc.filter(!_.asInstanceOf[DiscoveryInformation].isVersion2)
+    openid.authenticate(filtered, returnUrl)
+  }
+
+  private def versionFilter(version: String): Any => Boolean = version match {
+    case "v1" => ! _.asInstanceOf[DiscoveryInformation].isVersion2
+    case "v2" => _.asInstanceOf[DiscoveryInformation].isVersion2
+    case _ => a: Any => true
+
+  }
 
   def openidVerify(request: HttpServletRequest) = {
     try {
