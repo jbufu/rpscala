@@ -20,7 +20,11 @@ edit in `build.sbt` for usage with `~;container:start; container:reload /` in sb
 property files may contain additional key-value pairs (usually openid extensions)
 to be added to the openid request
 
-special key name: `openid_identifier` is used to populate the ID/URL form field
+special key names:
+
+`openid_identifier` is used to populate the ID/URL form field
+
+`openid_version`: "v1" selects and forces only use of OpenID v1, "v2" - only OpenID v2
 
 
 OpenID login
