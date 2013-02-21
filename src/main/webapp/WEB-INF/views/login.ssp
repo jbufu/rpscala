@@ -7,6 +7,10 @@
     <button type="submit">Login</button>
     <br />
     <input type="text" name="openid_version" value="${openid_version}" size="5" /> ("v1", "v2", emtpy/any other string for any version)
+    <br />
+    <input type="checkbox" name="openid_immediate" value="true"> checkid_immediate (instead of checkid_setup)
+    <br />
+    <input type="checkbox" name="openid_redirect" value="true"> GET redirect (instead of POST) to OP endpoint
 </form>
 openid extension parameters (no "openid." key prefix):
 <br />

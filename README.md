@@ -26,6 +26,10 @@ special key names:
 
 `openid_version`: "v1" selects and forces only use of OpenID v1, "v2" - only OpenID v2
 
+`openid_immediate`: if "true" sends checkid_immediate OpenID requests (instead of checkid_setup); defaults to false
+
+`openid_redirect`: if "true" sends the OpenID request via a GET redirect (instead of POST) to the OP endpoint URL
+
 
 OpenID login
 ------------------------------------------------------------------------

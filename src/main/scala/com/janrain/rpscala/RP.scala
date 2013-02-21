@@ -11,6 +11,7 @@ import org.openid4java.message.{Message, ParameterList}
 import javax.servlet.http.HttpServletRequest
 import collection.immutable.TreeMap
 import org.openid4java.discovery.DiscoveryInformation
+import java.net.URLEncoder
 
 object RP {
 
@@ -22,6 +23,8 @@ object RP {
   final val RETURN_PATH = "/return"
 
   final val OPENID_VERSION = "openid_version"
+  final val OPENID_IMMEDIATE = "openid_immediate"
+  final val OPENID_REDIRECT = "openid_redirect"
   final val OPENID_IDENTIFIER = "openid_identifier"
   final val FILTERED_PARAMS = Seq(OPENID_VERSION, OPENID_IDENTIFIER)
 
@@ -60,14 +63,19 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
     contentType = "text/html"
     val userSuppliedId = params(OPENID_IDENTIFIER)
     val versions = params(OPENID_VERSION)
+    val immediate = params.get(OPENID_IMMEDIATE).getOrElse("false").toBoolean
+    val redir = params.get(OPENID_REDIRECT).getOrElse("false").toBoolean
     val openidRequestExtensionParams = params.getOrElse(OPENID_REQUEST_EXTENSIONS, "").trim
-    val req = openidRequest(userSuppliedId, versions, returnUrl(baseUrl(request.getRequestURL.toString)))
+    val req = openidRequest(userSuppliedId, versions, immediate, returnUrl(baseUrl(request.getRequestURL.toString)))
     val openid_request = req.getParameterMap ++ fromKVString(openidRequestExtensionParams).map(kv => ("openid." + kv._1, kv._2))
     logger.info("\nopenid request:\n\t%s".format(openid_request.mkString("\n\t")))
-    layoutTemplate("/WEB-INF/layouts/formpost.ssp",
-      OPENID_REQUEST -> (openid_request).toList,
-      OP_ENDPOINT -> req.getOPEndpoint
-    )
+    if (redir)
+      redirect(req.getOPEndpoint + "?" + openid_request.map(kv => URLEncoder.encode(kv._1.toString, "utf-8") + "=" + URLEncoder.encode(kv._2.toString, "utf-8")).mkString("&"))
+    else
+      layoutTemplate("/WEB-INF/layouts/formpost.ssp",
+        OPENID_REQUEST -> (openid_request).toList,
+        OP_ENDPOINT -> req.getOPEndpoint
+      )
   }
 
   post(RETURN_PATH) {
@@ -146,7 +154,7 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
     respCore :: respExtensions
   }
 
-  private def openidRequest(identifier: String, version: String, returnUrl: String) = {
+  private def openidRequest(identifier: String, version: String, immediate: Boolean, returnUrl: String) = {
     val vf = versionFilter(version)
     val disc = openid.discover(identifier)
     val filtered = disc.filter(vf)
@@ -154,6 +162,7 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
       d.asInstanceOf[DiscoveryInformation].getVersion + " : " + d.asInstanceOf[DiscoveryInformation].getOPEndpoint).mkString("\n")))
 
 //    val filtered = disc.filter(!_.asInstanceOf[DiscoveryInformation].isVersion2)
+    openid.setImmediateAuth(immediate)
     openid.authenticate(filtered, returnUrl)
   }
 
