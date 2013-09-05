@@ -12,6 +12,8 @@ import javax.servlet.http.HttpServletRequest
 import collection.immutable.TreeMap
 import org.openid4java.discovery.DiscoveryInformation
 import java.net.URLEncoder
+import org.apache.commons.httpclient.HttpClient
+import org.apache.commons.httpclient.methods.PostMethod
 
 object RP {
 
@@ -19,8 +21,13 @@ object RP {
   final val CONFIG_FILE = "config_file"
   final val CONFIG_NONE = "NO_CONFIG"
 
-  final val LOGIN_PATH = "/login"
-  final val RETURN_PATH = "/return"
+  final val OPENID_LOGIN_PATH = "/login"
+  final val OPENID_RETURN_PATH = "/return"
+
+  final val ENGAGE_LOGIN_PATH = "/engage"
+  final val ENGAGE_APP_NAME = "engage_app_name"
+  final val ENGAGE_API_KEY = "engage_api_key"
+  final val ENGAGE_RP_TOKEN_URL = "engage_rp_token_url"
 
   final val OPENID_VERSION = "openid_version"
   final val OPENID_IMMEDIATE = "openid_immediate"
@@ -39,15 +46,17 @@ object RP {
   final val AUTH_RESPONSE = "auth_response"
 
   final val openid = new ConsumerManager
+  // openid.setMaxAssocAttempts(0)
+  // openid.setAllowStateless(true)
 }
 
 class RP extends ScalatraServlet with ScalateSupport with Loggable {
 
   get("/") {
-    redirect(LOGIN_PATH)
+    redirect(OPENID_LOGIN_PATH)
   }
 
-  get((LOGIN_PATH + "/?(.*)").r) {
+  get((OPENID_LOGIN_PATH + "/?(.*)").r) {
     contentType = "text/html"
     val configs = multiParams("captures").flatMap(_.split("/")).map(c => if (c == "") CONFIG_NONE else c)
     val requestParams = configs.foldLeft(Map.empty[String,String])( (loaded,configName) => loaded ++ loadConfig(configName)  )
@@ -59,7 +68,7 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
     )
   }
 
-  post(LOGIN_PATH + "/*") {
+  post(OPENID_LOGIN_PATH + "/*") {
     contentType = "text/html"
     val userSuppliedId = params(OPENID_IDENTIFIER)
     val versions = params(OPENID_VERSION)
@@ -73,18 +82,57 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
       redirect(req.getOPEndpoint + "?" + openid_request.map(kv => URLEncoder.encode(kv._1.toString, "utf-8") + "=" + URLEncoder.encode(kv._2.toString, "utf-8")).mkString("&"))
     else
       layoutTemplate("/WEB-INF/layouts/formpost.ssp",
-        OPENID_REQUEST -> (openid_request).toList,
+        OPENID_REQUEST -> openid_request.toList,
         OP_ENDPOINT -> req.getOPEndpoint
       )
   }
 
-  post(RETURN_PATH) {
+  post(OPENID_RETURN_PATH) {
     doReturnUrl()
   }
 
-  get(RETURN_PATH) {
+  get(OPENID_RETURN_PATH) {
     doReturnUrl()
   }
+
+  // ======================= ENGAGE-POWERED RP ============================================================
+
+  final val HTTP_CLIENT = new HttpClient()
+
+  val ENGAGE_AUTH_INFO = "https://rpxnow.com/api/v2/auth_info"
+  val ENGAGE_RESPONSE = "engage_response"
+
+  get(ENGAGE_LOGIN_PATH + "/:" + ENGAGE_APP_NAME) {
+    contentType = "text/html"
+    val engageAppName = params(ENGAGE_APP_NAME)
+    ssp( "engage1",
+      (ENGAGE_APP_NAME, engageAppName.toString),
+      (ENGAGE_RP_TOKEN_URL, request.getRequestURL.toString)
+    )
+  }
+
+  post(ENGAGE_LOGIN_PATH + "/:" + ENGAGE_APP_NAME) {
+    contentType = "text/html"
+    val engageAppName = params(ENGAGE_APP_NAME)
+    val engageConfigParams = loadConfig(engageAppName)
+    val apiKey = engageConfigParams.getOrElse(ENGAGE_API_KEY,
+      throw new Exception("%s missing from engage configuration '%s'".format(ENGAGE_API_KEY, engageAppName)))
+    val post = new PostMethod(ENGAGE_AUTH_INFO)
+    post.setParameter("token", params("token"))
+    post.setParameter("apiKey", apiKey)
+    try {
+      val statusCode = HTTP_CLIENT.executeMethod(post)
+      logger.info("[ " + ENGAGE_AUTH_INFO + " ] replied: status code=" + statusCode + "\n" + post.getResponseBodyAsString)
+      if (200 == statusCode)
+        ssp("engage2", ENGAGE_RESPONSE -> post.getResponseBodyAsString)
+      else
+        halt(500, "OPX returned status code: " + statusCode + ", response body " + post.getResponseBodyAsString)
+    } catch {
+      case e: Exception => halt(500, "OPX callback error: " + e.getMessage)
+    }
+  }
+
+  // ======================= / ENGAGE-POWERED RP ============================================================
 
   private def doReturnUrl() = {
     contentType = "text/html"
@@ -129,8 +177,8 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
        line.trim.dropWhile(_ != '=').drop(1))
     }).toMap
 
-  private def baseUrl(requestUrl: String) = requestUrl.replaceAll(LOGIN_PATH + ".*", "")
-  private def returnUrl(rpBaseUrl :String) = rpBaseUrl + RETURN_PATH
+  private def baseUrl(requestUrl: String) = requestUrl.replaceAll(OPENID_LOGIN_PATH + ".*", "")
+  private def returnUrl(rpBaseUrl :String) = rpBaseUrl + OPENID_RETURN_PATH
   private def receivingUrl(request: HttpServletRequest) =
     request.getRequestURL.append(
       if (request.getQueryString != null && request.getQueryString.length > 0) "?" + request.getQueryString else "")
@@ -143,7 +191,7 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
     val extAliases = message.getExtensions.map(extTypeUri => "openid." + message.getExtensionAlias(extTypeUri.toString))
 
     val respCore = kvString(TreeMap(message.getParameterMap
-      .withFilter(kv => ! extAliases.exists(kv._1.toString.startsWith(_)))
+      .withFilter(kv => ! extAliases.exists( kv._1.toString.startsWith ))
       .map(kv => (kv._1.toString,kv._2.toString)).toList: _*
     ))
 
@@ -180,7 +228,7 @@ class RP extends ScalatraServlet with ScalateSupport with Loggable {
         VERIFIED_ID -> (if (verif.getVerifiedId != null) verif.getVerifiedId.getIdentifier else "[no verified identifier]"),
         EXTENSIONS -> extensionsAsStrings(verif.getAuthResponse),
         VERIFIED_MSG -> (if (verif.getStatusMsg != null) verif.getStatusMsg else ""),
-        AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => (kv._1.toString -> kv._2.toString)).toMap)
+        AUTH_RESPONSE -> kvString(verif.getAuthResponse.getParameterMap.map(kv => kv._1.toString -> kv._2.toString).toMap)
       ).toList
     } catch {
       case e: Exception =>

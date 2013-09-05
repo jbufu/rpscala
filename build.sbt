@@ -29,6 +29,7 @@ libraryDependencies ++= Seq(
   "org.scalatra" % "scalatra" % "2.1.1",
   "org.scalatra" % "scalatra-scalate" % "2.1.1",
   "org.scalatra" % "scalatra-specs2" % "2.1.1" % "test",
+  "commons-httpclient" % "commons-httpclient" % "3.1",
   //"log4j" % "log4j" % "1.2.17",
   "ch.qos.logback" % "logback-classic" % "1.0.6",
   "org.slf4j" % "slf4j-log4j12" % "1.7.2",
